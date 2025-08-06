@@ -1,0 +1,115 @@
+Here's a step-by-step guide to set up CloudWatch Agent, configure metrics/alarms on an EC2 instance, and send alerts using SNS (Simple Notification Service):
+
+✅ 1. Install and Configure CloudWatch Agent on EC2
+🔧 Step 1: Install CloudWatch Agent
+Amazon Linux / RHEL / CentOS:
+
+bash
+Copy
+Edit
+sudo yum install amazon-cloudwatch-agent -y
+Ubuntu / Debian:
+
+bash
+Copy
+Edit
+sudo apt-get update
+sudo apt-get install amazon-cloudwatch-agent -y
+🛠️ Step 2: Create CloudWatch Agent Config File
+You can create a basic config for monitoring CPU, memory, and disk:
+
+bash
+Copy
+Edit
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard
+It will ask interactive questions. Answer based on your needs. At the end, a config file will be saved in /opt/aws/amazon-cloudwatch-agent/bin/config.json or /opt/aws/amazon-cloudwatch-agent/etc/.
+
+🚀 Step 3: Start CloudWatch Agent
+bash
+Copy
+Edit
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config \
+  -m ec2 \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+  -s
+✅ 2. Create CloudWatch Alarm
+🔍 Example: Alarm on CPU Usage > 80%
+You can use AWS Console or AWS CLI.
+
+📘 Using CLI:
+bash
+Copy
+Edit
+aws cloudwatch put-metric-alarm \
+  --alarm-name "HighCPUAlarm" \
+  --metric-name CPUUtilization \
+  --namespace AWS/EC2 \
+  --statistic Average \
+  --period 300 \
+  --threshold 80 \
+  --comparison-operator GreaterThanThreshold \
+  --dimensions Name=InstanceId,Value=<EC2_INSTANCE_ID> \
+  --evaluation-periods 2 \
+  --alarm-actions <SNS_TOPIC_ARN> \
+  --unit Percent
+✅ 3. Create SNS Topic and Subscribe
+📌 Step 1: Create SNS Topic
+bash
+Copy
+Edit
+aws sns create-topic --name EC2AlertsTopic
+Note the ARN output, e.g.:
+
+makefile
+Copy
+Edit
+arn:aws:sns:ap-south-1:123456789012:EC2AlertsTopic
+📩 Step 2: Subscribe Your Email to SNS
+bash
+Copy
+Edit
+aws sns subscribe \
+  --topic-arn arn:aws:sns:ap-south-1:123456789012:EC2AlertsTopic \
+  --protocol email \
+  --notification-endpoint your_email@example.com
+📧 Confirm the subscription in your email inbox.
+
+🔁 Step 3: Attach SNS to CloudWatch Alarm
+Already covered in CLI alarm example above (--alarm-actions <SNS_TOPIC_ARN>)
+
+✅ 4. IAM Role Permission for EC2
+Attach this IAM role to EC2 for CloudWatch agent to push metrics:
+
+📘 Policy: CloudWatchAgentServerPolicy
+If creating custom policy:
+
+json
+Copy
+Edit
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData",
+        "logs:PutLogEvents",
+        "logs:CreateLogStream",
+        "logs:DescribeLogStreams",
+        "logs:CreateLogGroup"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+✅ Final Testing
+Generate CPU load:
+
+bash
+Copy
+Edit
+yes > /dev/null &
+Wait for the CloudWatch alarm to trigger.
+
+Check if an email notification comes via SNS.

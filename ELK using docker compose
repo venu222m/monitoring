@@ -1,0 +1,213 @@
+Here is an end-to-end guide to set up ELK stack using Docker Compose, monitor container logs, and set up alerts (alarms) when specific issues occur — like app crashes, errors, or high log volume.
+
+✅ Overview
+Tool	Role
+Elasticsearch	Store structured logs
+Logstash	Parse/forward logs (optional)
+Kibana	Visualize logs, create alerts
+Filebeat	Collect Docker container logs
+ElastAlert (or Kibana alerting)	Trigger alarms
+
+✅ STEP 1: ELK STACK USING DOCKER-COMPOSE
+🔁 Folder Structure
+bash
+Copy
+Edit
+elk-stack/
+├── docker-compose.yml
+├── elasticsearch/
+├── logstash/
+│   └── logstash.conf
+├── kibana/
+├── filebeat/
+│   ├── filebeat.yml
+└── elastalert/ (optional)
+📦 docker-compose.yml
+yaml
+Copy
+Edit
+version: '3.7'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.4
+    container_name: logstash
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.4
+    container_name: filebeat
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+    depends_on:
+      - logstash
+
+volumes:
+  esdata:
+⚙️ logstash.conf (inside logstash/)
+conf
+Copy
+Edit
+input {
+  beats {
+    port => 5044
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["http://elasticsearch:9200"]
+    index => "docker-logs-%{+YYYY.MM.dd}"
+  }
+}
+⚙️ filebeat.yml (inside filebeat/)
+yaml
+Copy
+Edit
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    multiline.pattern: '^\s'
+    multiline.negate: false
+    multiline.match: after
+
+processors:
+  - add_docker_metadata: ~
+
+output.logstash:
+  hosts: ["logstash:5044"]
+▶️ Start the Stack
+bash
+Copy
+Edit
+docker-compose up -d
+Access:
+
+Elasticsearch: http://localhost:9200
+
+Kibana: http://localhost:5601
+
+🔍 STEP 2: Visualize Container Logs in Kibana
+Open Kibana → Management → Stack Management → Index Patterns
+
+Create pattern: docker-logs-*
+
+Select @timestamp as time field
+
+Navigate to Discover and filter logs like:
+
+message: "error"
+
+container.name: myapp-container
+
+🚨 STEP 3: Alarm Setup for Container Issues
+🔔 Option A: Use Kibana Alerting (Built-in)
+Requires you to create a Kibana rule manually.
+
+📘 Example: Alert for "ERROR" in logs
+Go to: Kibana → Stack Management → Rules
+
+Click Create Rule
+
+Rule Type: Log threshold
+
+Conditions:
+
+Check message contains "error" in last 5 mins
+
+Group by: container.name
+
+Alert when count ≥ 1
+
+Action:
+
+Email, Slack, or Webhook (you need to configure connectors)
+
+🔔 Option B: Use ElastAlert for Advanced Alerts
+Install ElastAlert container:
+
+yaml
+Copy
+Edit
+  elastalert:
+    image: jertel/elastalert2
+    container_name: elastalert
+    volumes:
+      - ./elastalert:/opt/elastalert
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+    depends_on:
+      - elasticsearch
+Create a rule file: elastalert/rules/error_alert.yaml
+
+yaml
+Copy
+Edit
+name: Error Alert
+type: frequency
+index: docker-logs-*
+num_events: 1
+timeframe:
+  minutes: 5
+
+filter:
+- query:
+    query_string:
+      query: "message: \"error\""
+
+alert:
+  - "email"
+
+email:
+  - your_email@example.com
+✅ Testing the Setup
+🔄 Generate Test Error
+Run a test container:
+
+bash
+Copy
+Edit
+docker run --name test-crash --rm alpine sh -c 'echo "error: crash"'
+Check:
+
+Logs appear in Kibana → Discover
+
+Alert fires if error is detected
+
+✅ Summary
+Step	Description
+1	Set up Elasticsearch, Logstash, Kibana
+2	Configure Filebeat to ship container logs
+3	Use Kibana or ElastAlert to detect issues
+4	Configure email/Slack/webhook alerts

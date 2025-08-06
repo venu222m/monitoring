@@ -1,0 +1,176 @@
+Here’s an end-to-end guide to set up Azure Monitor on a Virtual Machine (VM), enable log and metric collection, create alerts, and troubleshoot VM issues like high CPU, disk, memory, and boot/crash problems.
+
+✅ Overview: What You’ll Set Up
+Feature	Purpose
+Log Analytics Workspace	Centralized logs & query platform
+Azure Monitor Agent (AMA)	Collects metrics & logs from VM
+Diagnostic Settings	Sends performance counters and logs to workspace
+Alerts (Metric & Log)	Detect & notify on CPU, disk, crash, etc.
+Workbooks	Dashboard for visualization
+
+✅ Step 1: Create Log Analytics Workspace
+📘 Using Azure CLI:
+bash
+Copy
+Edit
+az monitor log-analytics workspace create \
+  --resource-group my-rg \
+  --workspace-name myLogWorkspace \
+  --location eastus
+✅ Step 2: Install Azure Monitor Agent (AMA) on VM
+🛠️ Option 1: From Azure Portal
+Go to Virtual Machine > Monitoring > Insights
+
+Click Enable
+
+This installs the Azure Monitor Agent and connects to workspace
+
+🛠️ Option 2: CLI-based
+bash
+Copy
+Edit
+# Link VM to workspace
+az monitor diagnostic-settings create \
+  --name "VmDiag" \
+  --resource $(az vm show -g my-rg -n myvm --query id -o tsv) \
+  --workspace $(az monitor log-analytics workspace show --resource-group my-rg --workspace-name myLogWorkspace --query id -o tsv) \
+  --metrics '[{"category":"AllMetrics","enabled":true}]' \
+  --logs '[{"category":"Syslog","enabled":true},{"category":"LinuxPerformanceCounters","enabled":true}]'
+For Windows VMs, use WindowsEventLogs and PerformanceCounters.
+
+✅ Step 3: Configure Data Collection Rules (DCR)
+🔍 For Linux Example:
+Collect performance metrics:
+
+bash
+Copy
+Edit
+az monitor data-collection rule create \
+  --name "vm-dcr" \
+  --resource-group my-rg \
+  --location eastus \
+  --data-flows '[{"streams":["Microsoft-Perf"],"destinations":["logdest"]}]' \
+  --destinations '[{"type":"LogAnalytics","name":"logdest","workspaceResourceId":"<workspace-id>"}]' \
+  --data-sources '[{"streams":["Microsoft-Perf"],"performanceCounters":[{"counterSpecifier":"\\Processor(_Total)\\% Processor Time","sampleRateInSeconds":"15"}]}]'
+✅ Step 4: View Logs in Log Analytics
+📘 Common KQL Queries:
+CPU Usage:
+
+kql
+Copy
+Edit
+Perf 
+| where ObjectName == "Processor" and CounterName == "% Processor Time"
+| summarize avg(CounterValue) by bin(TimeGenerated, 5m), Computer
+Disk Free Space:
+
+kql
+Copy
+Edit
+Perf 
+| where CounterName == "Free Megabytes"
+| summarize avg(CounterValue) by bin(TimeGenerated, 5m), InstanceName
+Syslog Errors (Linux):
+
+kql
+Copy
+Edit
+Syslog 
+| where SeverityLevel >= 3
+Windows Event Errors:
+
+kql
+Copy
+Edit
+Event 
+| where EventLevelName == "Error"
+✅ Step 5: Set Alerts on VM Issues
+🔔 Example: Alert if CPU > 90%
+bash
+Copy
+Edit
+az monitor metrics alert create \
+  --name "HighCPUAlert" \
+  --resource-group my-rg \
+  --scopes $(az vm show -g my-rg -n myvm --query id -o tsv) \
+  --condition "avg Percentage CPU > 90" \
+  --description "Alert if CPU is above 90%" \
+  --action-groups <action-group-id>
+✅ Step 6: Create Action Group (Email, SMS, etc.)
+bash
+Copy
+Edit
+az monitor action-group create \
+  --resource-group my-rg \
+  --name vm-alert-group \
+  --short-name alertgrp \
+  --email-receiver name=OpsNotify email=you@example.com
+✅ Step 7: Enable VM Insights (Visualization)
+From Azure Portal:
+
+Go to VM → Monitoring → Insights
+
+View tabs:
+
+Performance: CPU, Memory, Disk, Network
+
+Map: Dependencies with other resources
+
+Logs: Drill into details
+
+🔍 Troubleshooting Common VM Issues
+Issue	What to Check	Where
+High CPU	Perf logs (% Processor Time)	Log Analytics
+High memory usage	% Committed Bytes In Use counter	Log Analytics
+Disk space running out	Free Megabytes, disk queue length	Log Analytics
+Boot/Shutdown/Crash	Syslog (Linux), Event (Windows) logs	Log Analytics
+Network drops	Network Interface metrics	Azure Monitor
+App/service not running	Custom log queries / Heartbeat / Dependency Map	VM Insights
+
+✅ Visualization Using Workbooks (Optional)
+Go to Log Analytics Workspace → Workbooks
+
+Use built-in templates like:
+
+Performance Analysis
+
+Log Errors & Events
+
+Availability Overview
+
+✅ Summary Diagram
+pgsql
+Copy
+Edit
+[VM]
+  |
+  |--- Azure Monitor Agent
+  |
+  v
+[Log Analytics Workspace]
+  |
+  +--> Metrics (Perf)
+  +--> Logs (Syslog/Event)
+  |
+  +--> Alerts (Thresholds)
+  +--> Dashboards (Workbooks)
+✅ Summary: End-to-End Azure Monitor Setup for VM
+Step	Description
+1	Create Log Analytics Workspace
+2	Install Azure Monitor Agent on VM
+3	Configure Diagnostic Settings & DCR
+4	View logs in Log Analytics (KQL)
+5	Set metric/log-based alerts
+6	Use VM Insights for performance
+7	Build dashboards/workbooks
+
+Would you like a Bash/PowerShell script to automate this whole setup?
+
+Or a sample workbook dashboard export for VM health?
+
+Let me know and I’ll generate it for you.
+
+
+
+
+

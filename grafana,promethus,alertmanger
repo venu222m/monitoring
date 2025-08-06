@@ -1,0 +1,184 @@
+Here’s an end-to-end step-by-step guide to set up Grafana + Prometheus + Alertmanager to monitor Kubernetes pod logs, resources, and send alerts — with optional Loki integration for log visibility.
+
+🧰 TOOLS USED
+Tool	Role
+Prometheus	Collects metrics from pods/nodes
+Alertmanager	Sends alerts via Email/Slack/etc.
+Grafana	Dashboards & Alert visualization
+Loki	(Optional) Centralized pod log monitoring
+Promtail	(Optional) Sends logs to Loki
+
+✅ PART 1: Prerequisites
+A running Kubernetes cluster (minikube, EKS, AKS, etc.)
+
+kubectl configured
+
+helm installed
+
+✅ PART 2: Deploy Prometheus + Grafana + Alertmanager Using Helm
+⬇️ Step 1: Add Helm Repo
+bash
+Copy
+Edit
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+🚀 Step 2: Install Prometheus Stack (includes Grafana & Alertmanager)
+bash
+Copy
+Edit
+helm install kube-prom-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace
+This installs:
+
+Prometheus
+
+Grafana
+
+Alertmanager
+
+NodeExporter
+
+KubeStateMetrics
+
+🔍 Step 3: Access Grafana Dashboard
+bash
+Copy
+Edit
+kubectl port-forward svc/kube-prom-stack-grafana -n monitoring 3000:80
+Open: http://localhost:3000
+
+Default login:
+
+User: admin
+
+Pass: kubectl get secret --namespace monitoring kube-prom-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d
+
+✅ PART 3: Pod Metrics Monitoring
+The kube-prometheus-stack automatically scrapes:
+
+Pod CPU/memory usage
+
+Restarts, statuses
+
+Node-level metrics
+
+🧪 Sample Query in Grafana:
+promql
+Copy
+Edit
+rate(container_cpu_usage_seconds_total{container!="",namespace="default"}[5m])
+Or use built-in dashboards: Kubernetes / Compute Resources / Pod
+
+✅ PART 4: Alertmanager Setup
+⚙️ Example: Alert if Pod Restarts > 5 in 5m
+Create PrometheusRule:
+
+yaml
+Copy
+Edit
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pod-restarts
+  namespace: monitoring
+spec:
+  groups:
+    - name: pod.rules
+      rules:
+        - alert: HighPodRestart
+          expr: increase(kube_pod_container_status_restarts_total[5m]) > 5
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is restarting frequently"
+Apply it:
+
+bash
+Copy
+Edit
+kubectl apply -f pod-restarts.yaml
+📩 Configure Alertmanager Receiver (Email or Slack)
+Edit values using:
+
+bash
+Copy
+Edit
+helm upgrade kube-prom-stack prometheus-community/kube-prometheus-stack \
+  --reuse-values -n monitoring \
+  --set alertmanager.config.receivers[0].name=email-receiver \
+  --set alertmanager.config.receivers[0].email_configs[0].to=you@example.com \
+  --set alertmanager.config.route.receiver=email-receiver
+✅ PART 5: Pod Log Monitoring (Using Loki + Promtail) — Optional but Recommended
+📥 Step 1: Add Grafana Helm Repo
+bash
+Copy
+Edit
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+🚀 Step 2: Install Loki + Promtail
+bash
+Copy
+Edit
+helm upgrade --install loki grafana/loki-stack \
+  --namespace monitoring \
+  --set promtail.enabled=true
+📊 Step 3: Add Loki as Data Source in Grafana
+Open Grafana → Settings → Data Sources
+
+Add new:
+
+Name: Loki
+
+Type: Loki
+
+URL: http://loki:3100
+
+🔍 Step 4: View Pod Logs in Grafana
+Go to Explore tab
+
+Select Loki data source
+
+Query:
+
+logql
+Copy
+Edit
+{namespace="default", container="nginx"}
+✅ Summary: Architecture
+csharp
+Copy
+Edit
+               [Node Exporter / Kube State Metrics]
+                           |
+[Promtail] ---> [Loki] <--> [Grafana] <--> [Alertmanager]
+                           ^
+            [Prometheus] <-|
+✅ Use Cases You Can Implement
+Use Case	How
+High Pod Restart	PrometheusRule + Alertmanager
+Pod Crash or OOMKilled	kube_pod_container_status_last_terminated_reason
+Log Pattern "ERROR" in Pod	Loki + Alert in Grafana Explore
+CPU/Memory Threshold	Pod-level PromQL + Alert Rule
+Email/Slack Alerts	Configured in Alertmanager
+
+✅ Testing
+Deploy a test app:
+
+bash
+Copy
+Edit
+kubectl run nginx --image=nginx
+Delete the pod multiple times to simulate crash:
+
+bash
+Copy
+Edit
+kubectl delete pod -l run=nginx
+Check:
+
+Logs in Grafana > Explore
+
+Alerts in Alertmanager
+
+Email/slack notification (if configured)

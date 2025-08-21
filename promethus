@@ -57,7 +57,15 @@ prometheus-prometheus-node-exporter-ljbjm                1/1     Running   0    
 prometheus-prometheus-node-exporter-tfr92                0/1     Pending   0          4m9s
 prometheus-prometheus-node-exporter-zzxp4                1/1     Running   0          4m9s
 ==============================================================================================================================================================
-
+root@ip-172-31-47-40:~# kubkubectl port-forward -n monitoring --address 0.0.0.0 prometheus-prometheus-kube-prometheus-prometheus-^C
+root@ip-172-31-47-40:~# kubectl port-forward -n monitoring --address 0.0.0.0 prometheus-prometheus-kube-prometheus-prometheus-0 9090
+Forwarding from 0.0.0.0:9090 -> 9090
+Handling connection for 9090
+Handling connection for 9090
+Handling connection for 9090
+Handling connection for 9090
+=========================================================================================
+http://98.85.222.32:9090/query
 
 Prometheus
 

@@ -69,7 +69,23 @@ http://98.85.222.32:9090/query
 
 Prometheus
 
+machine_memory_bytes
+================================================grafana login
+por forwrd
+root@ip-172-31-47-40:~# error: Service prometheus-grafana does not have a service port 3000
+kubectl port-forward -n monitoring --address 0.0.0.0 svc/prometheus-grafana 3000:80
+Forwarding from 0.0.0.0:3000 -> 3000
+Handling connection for 3000
+Handling connection for 3000
+
 Grafana
+username ; admin
+
+
+root@ip-172-31-47-40:~# kubectl --namespace monitoring get secrets prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+prom-operator  (pwd)
+--------------------------------------------------------------------------------------------------------------------------------------------
+root@ip-172-3
 
 Alertmanager
 

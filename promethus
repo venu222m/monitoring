@@ -45,6 +45,18 @@ Access Grafana local instance:
   kubectl --namespace monitoring port-forward $POD_NAME 3000
 
 Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
+================================================================================================================================================================
+root@ip-172-31-47-40:~# kubectl get pod -n monitoring
+NAME                                                     READY   STATUS    RESTARTS   AGE
+alertmanager-prometheus-kube-prometheus-alertmanager-0   2/2     Running   0          4m5s
+prometheus-grafana-6d6666b4dc-7fqn5                      3/3     Running   0          4m9s
+prometheus-kube-prometheus-operator-9b96bf767-jzjf6      1/1     Running   0          4m9s
+prometheus-kube-state-metrics-6b4dff746-d6vwv            1/1     Running   0          4m9s
+prometheus-prometheus-kube-prometheus-prometheus-0       2/2     Running   0          4m5s
+prometheus-prometheus-node-exporter-ljbjm                1/1     Running   0          4m8s
+prometheus-prometheus-node-exporter-tfr92                0/1     Pending   0          4m9s
+prometheus-prometheus-node-exporter-zzxp4                1/1     Running   0          4m9s
+==============================================================================================================================================================
 
 
 Prometheus

@@ -104,3 +104,30 @@ NOTES:
 ######   WARNING: Persistence is disabled!!! You will lose your data when   #####
 ######            the Grafana pod is terminated.                            #####
 #################################################################################
+You want to switch it to NodePort (like you did for Prometheus).
+
+ Method 1: Patch existing service
+kubectl patch svc grafana -n monitoring -p '{"spec": {"type": "NodePort"}}'
+root@ip-172-31-33-113:~# kubectl get svc -n monitoring
+NAME                                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                         AGE
+alertmanager-operated                     ClusterIP   None             <none>        9093/TCP,9094/TCP,9094/UDP      32m
+grafana                                   NodePort    10.100.32.230    <none>        80:32737/TCP                    15m
+
+===========================================================
+Step 3: Add Prometheus as a Data Source
+
+In Grafana → Menu (☰) → Connections → Data sources → Add data source
+
+Select Prometheus
+
+In the HTTP URL field, enter:
+
+http://18.208.205.63:32737
+
+
+Leave default Access = Server (default)
+
+Click Save & Test → You should see "Data source is working" ✅
+=====================================================================================
+
+================================================================

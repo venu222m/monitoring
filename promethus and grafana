@@ -122,8 +122,7 @@ Select Prometheus
 
 In the HTTP URL field, enter:
 
-http://18.208.205.63:32737
-
+http://prometheus-kube-prometheus-prometheus:9090
 
 Leave default Access = Server (default)
 

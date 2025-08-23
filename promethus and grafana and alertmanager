@@ -182,3 +182,131 @@ Click Load.
 Select your Prometheus datasource.
 
 Click Import.
+=====================================================================================================================
+he error you’re hitting is because SMTP (email) isn’t configured in Grafana yet.
+
+By default, Grafana does not ship with SMTP enabled — you have to configure it in grafana.ini or via environment variables before email contact points will work.
+
+🔹 Option 1: Configure SMTP for Email Alerts
+
+Open Grafana config (depends on your setup):
+
+Helm / kube-prometheus-stack: edit values under grafana.ini.smtp.
+
+Docker: mount a custom grafana.ini.
+
+Bare-metal: edit /etc/grafana/grafana.ini.
+
+Add a section like this (example using Gmail):
+
+[smtp]
+enabled = true
+host = smtp.gmail.com:587
+user = youraddress@gmail.com
+password = your-app-password   ; (generate from Gmail -> App passwords)
+from_address = youraddress@gmail.com
+from_name = Grafana Alerts
+skip_verify = true
+
+
+Restart Grafana:
+
+kubectl rollout restart deployment grafana -n monitoring
+======================================================================alerrmanager===============================================
+Step 1: Open Alerting
+
+In Grafana left sidebar → Alerting → Alert rules.
+
+Click + New alert rule.
+
+🔹 Step 2: Rule Details
+
+Name: Pod Not Ready
+
+Group: Kubernetes Alerts
+
+Folder: Kubernetes (or create one)
+
+Evaluate every: 1m
+
+For: 5m (wait time before firing to avoid flapping)
+
+🔹 Step 3: Add Query (PromQL)
+
+Under Queries and expressions → A
+
+Datasource: Prometheus
+
+Query:
+
+sum by (namespace, pod) (
+  kube_pod_status_ready{condition="true"} == 0
+)
+
+
+This returns 1 if a pod is not Ready.
+
+Expression → Reduce
+
+Input: A
+
+Function: last
+
+Expression → Threshold
+
+Input: Reduce
+
+Condition: IS ABOVE 0
+
+👉 This means: If any pod is not Ready for 5 minutes → fire alert.
+
+🔹 Step 4: Labels & Annotations
+
+Labels:
+
+severity: critical
+
+team: devops
+
+Annotations:
+
+Summary: Pod {{ $labels.pod }} in {{ $labels.namespace }} not Ready
+
+Description:
+
+Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been in NotReady state for 5m.
+
+🔹 Step 5: Notification (Contact Point)
+
+In Alert rule → Notifications
+
+Choose Contact point (Slack, Email, Webhook).
+
+If you haven’t created one yet:
+
+Go to Alerting → Contact points → + New contact point
+
+Choose Slack/Webhook/Email (SMTP required for email).
+
+🔹 Step 6: Save & Test
+
+Click Save rule.
+
+Scale down or delete a pod to test:
+
+kubectl -n default delete pod <pod-name>
+
+
+In Grafana → Alerting → Alert rules → State → you should see it firing.
+
+Notification will be sent to your Contact Point.
+==========================================================================end========================================================================
+
+or
+
+systemctl restart grafana-server
+
+
+Test: In Grafana → Alerting → Contact points → New → Email → enter a test address → Send test notification.
+
+⚠️ Note: Gmail requires an App Password (not your normal password).

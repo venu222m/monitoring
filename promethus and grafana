@@ -131,3 +131,21 @@ Click Save & Test → You should see "Data source is working" ✅
 You’ve added Prometheus as a data source in Grafana and started adding visualizations (panels).
 
 ================================================================
+
+Next Steps After Grafana Setup
+1. Explore Metrics & Dashboards
+
+Learn PromQL (Prometheus Query Language):
+
+CPU, memory, disk, pod restarts, network.
+
+Practice writing queries in Prometheus UI, then build Grafana panels.
+
+Import ready dashboards from Grafana Labs
+:
+
+Node Exporter (ID: 1860)
+
+Kubernetes Cluster (ID: 315)
+
+Pods & Deployments (ID: 6417)

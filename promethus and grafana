@@ -129,5 +129,6 @@ Leave default Access = Server (default)
 
 Click Save & Test → You should see "Data source is working" ✅
 =====================================================================================
+You’ve added Prometheus as a data source in Grafana and started adding visualizations (panels).
 
 ================================================================

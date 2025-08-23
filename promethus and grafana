@@ -162,3 +162,23 @@ Node Exporter (ID: 1860)
 Kubernetes Cluster (ID: 315)
 
 Pods & Deployments (ID: 6417)
+
+Step 2: Import Dashboard============================================================================================================
+
+In Grafana left menu → Dashboards → + Import.
+
+You’ll see a box with three options: Import via grafana.com ID, Upload JSON file, Paste JSON.
+
+Paste one of the IDs:
+
+For Node Exporter → 1860
+
+For Kubernetes Cluster → 315
+
+For Pods & Deployments → 6417
+
+Click Load.
+
+Select your Prometheus datasource.
+
+Click Import.

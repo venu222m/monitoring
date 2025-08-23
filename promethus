@@ -46,192 +46,61 @@ Access Grafana local instance:
 
 Visit https://github.com/prometheus-operator/kube-prometheus for instructions on how to create & configure Alertmanager and Prometheus instances using the Operator.
 ================================================================================================================================================================
-root@ip-172-31-47-40:~# kubectl get pod -n monitoring
-NAME                                                     READY   STATUS    RESTARTS   AGE
-alertmanager-prometheus-kube-prometheus-alertmanager-0   2/2     Running   0          4m5s
-prometheus-grafana-6d6666b4dc-7fqn5                      3/3     Running   0          4m9s
-prometheus-kube-prometheus-operator-9b96bf767-jzjf6      1/1     Running   0          4m9s
-prometheus-kube-state-metrics-6b4dff746-d6vwv            1/1     Running   0          4m9s
-prometheus-prometheus-kube-prometheus-prometheus-0       2/2     Running   0          4m5s
-prometheus-prometheus-node-exporter-ljbjm                1/1     Running   0          4m8s
-prometheus-prometheus-node-exporter-tfr92                0/1     Pending   0          4m9s
-prometheus-prometheus-node-exporter-zzxp4                1/1     Running   0          4m9s
+
+root@ip-172-31-33-113:~# kubectl get svc -n monitoring
+NAME                                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
+alertmanager-operated                     ClusterIP   None             <none>        9093/TCP,9094/TCP,9094/UDP   6m28s
+prometheus-grafana                        ClusterIP   10.100.148.45    <none>        80/TCP                       6m33s
+prometheus-kube-prometheus-alertmanager   ClusterIP   10.100.76.209    <none>        9093/TCP,8080/TCP            6m33s
+prometheus-kube-prometheus-operator       ClusterIP   10.100.5.219     <none>        443/TCP                      6m33s
+prometheus-kube-prometheus-prometheus     ClusterIP   10.100.241.248   <none>        9090/TCP,8080/TCP            6m33s
+prometheus-kube-state-metrics             ClusterIP   10.100.102.50    <none>        8080/TCP                     6m33s
+prometheus-operated                       ClusterIP   None             <none>        9090/TCP                     6m28s
+prometheus-prometheus-node-exporter       ClusterIP   10.100.95.61     <none>        9100/TCP                     6m33s
+
 ==============================================================================================================================================================
-root@ip-172-31-47-40:~# kubkubectl port-forward -n monitoring --address 0.0.0.0 prometheus-prometheus-kube-prometheus-prometheus-^C
-root@ip-172-31-47-40:~# kubectl port-forward -n monitoring --address 0.0.0.0 prometheus-prometheus-kube-prometheus-prometheus-0 9090
-Forwarding from 0.0.0.0:9090 -> 9090
-Handling connection for 9090
-Handling connection for 9090
-Handling connection for 9090
-Handling connection for 9090
-=========================================================================================
-http://98.85.222.32:9090/query
+root@ip-172-31-33-113:~# kubectl patch svc prometheus-kube-prometheus-prometheus -n monitoring -p '{"spec": {"type": "NodePort"}}'
+service/prometheus-kube-prometheus-prometheus patched
+root@ip-172-31-33-113:~# kubectl get svc prometheus-kube-prometheus-prometheus -n monitoring
+NAME                                    TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)                         AGE
+prometheus-kube-prometheus-prometheus   NodePort   10.100.241.248   <none>        9090:30667/TCP,8080:30093/TCP   11m
+root@ip-172-31-33-113:~# kubectl get nodes -o wide
+NAME                            STATUS   ROLES    AGE   VERSION               INTERNAL-IP     EXTERNAL-IP     OS-IMAGE                       KERNEL-VERSION                    CONTAINER-RUNTIME
+ip-192-168-0-188.ec2.internal   Ready    <none>   19m   v1.32.7-eks-3abbec1   192.168.0.188   18.208.205.63   Amazon Linux 2023.8.20250818   6.1.147-172.266.amzn2023.x86_64   containerd://1.7.27
 
 Prometheus
-
+http://18.208.205.63:30667
 machine_memory_bytes
-================================================grafana login
-por forwrd
-root@ip-172-31-47-40:~# error: Service prometheus-grafana does not have a service port 3000
-kubectl port-forward -n monitoring --address 0.0.0.0 svc/prometheus-grafana 3000:80
-Forwarding from 0.0.0.0:3000 -> 3000
-Handling connection for 3000
-Handling connection for 3000
-
-Grafana
-username ; admin
-
-
-root@ip-172-31-47-40:~# kubectl --namespace monitoring get secrets prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
-prom-operator  (pwd)
---------------------------------------------------------------------------------------------------------------------------------------------
-root@ip-172-3
-
-Alertmanager
-
-NodeExporter
-
-KubeStateMetrics
-
-🔍 Step 3: Access Grafana Dashboard
-bash
-Copy
-Edit
-kubectl port-forward svc/kube-prom-stack-grafana -n monitoring 3000:80
-Open: http://localhost:3000
-
-Default login:
-
-User: admin
-
-Pass: kubectl get secret --namespace monitoring kube-prom-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d
-
-✅ PART 3: Pod Metrics Monitoring
-The kube-prometheus-stack automatically scrapes:
-
-Pod CPU/memory usage
-
-Restarts, statuses
-
-Node-level metrics
-
-🧪 Sample Query in Grafana:
-promql
-Copy
-Edit
-rate(container_cpu_usage_seconds_total{container!="",namespace="default"}[5m])
-Or use built-in dashboards: Kubernetes / Compute Resources / Pod
-
-✅ PART 4: Alertmanager Setup
-⚙️ Example: Alert if Pod Restarts > 5 in 5m
-Create PrometheusRule:
-
-yaml
-Copy
-Edit
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: pod-restarts
-  namespace: monitoring
-spec:
-  groups:
-    - name: pod.rules
-      rules:
-        - alert: HighPodRestart
-          expr: increase(kube_pod_container_status_restarts_total[5m]) > 5
-          for: 2m
-          labels:
-            severity: critical
-          annotations:
-            summary: "Pod {{ $labels.pod }} is restarting frequently"
-Apply it:
-
-bash
-Copy
-Edit
-kubectl apply -f pod-restarts.yaml
-📩 Configure Alertmanager Receiver (Email or Slack)
-Edit values using:
-
-bash
-Copy
-Edit
-helm upgrade kube-prom-stack prometheus-community/kube-prometheus-stack \
-  --reuse-values -n monitoring \
-  --set alertmanager.config.receivers[0].name=email-receiver \
-  --set alertmanager.config.receivers[0].email_configs[0].to=you@example.com \
-  --set alertmanager.config.route.receiver=email-receiver
-✅ PART 5: Pod Log Monitoring (Using Loki + Promtail) — Optional but Recommended
-📥 Step 1: Add Grafana Helm Repo
-bash
-Copy
-Edit
-helm repo add grafana https://grafana.github.io/helm-charts
+================================================grafana dashboard
+root@ip-172-31-33-113:~# helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
-🚀 Step 2: Install Loki + Promtail
-bash
-Copy
-Edit
-helm upgrade --install loki grafana/loki-stack \
-  --namespace monitoring \
-  --set promtail.enabled=true
-📊 Step 3: Add Loki as Data Source in Grafana
-Open Grafana → Settings → Data Sources
+"grafana" has been added to your repositories
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "grafana" chart repository
+...Successfully got an update from the "prometheus-community" chart repository
+Update Complete. ⎈Happy Helming!⎈
+root@ip-172-31-33-113:~# helm install grafana grafana/grafana -n monitoring
+NAME: grafana
+LAST DEPLOYED: Sat Aug 23 10:27:31 2025
+NAMESPACE: monitoring
+STATUS: deployed
+REVISION: 1
+NOTES:
+1. Get your 'admin' user password by running:
 
-Add new:
+   kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 
-Name: Loki
 
-Type: Loki
+2. The Grafana server can be accessed via port 80 on the following DNS name from within your cluster:
 
-URL: http://loki:3100
+   grafana.monitoring.svc.cluster.local
 
-🔍 Step 4: View Pod Logs in Grafana
-Go to Explore tab
+   Get the Grafana URL to visit by running these commands in the same shell:
+     export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
+     kubectl --namespace monitoring port-forward $POD_NAME 3000
 
-Select Loki data source
-
-Query:
-
-logql
-Copy
-Edit
-{namespace="default", container="nginx"}
-✅ Summary: Architecture
-csharp
-Copy
-Edit
-               [Node Exporter / Kube State Metrics]
-                           |
-[Promtail] ---> [Loki] <--> [Grafana] <--> [Alertmanager]
-                           ^
-            [Prometheus] <-|
-✅ Use Cases You Can Implement
-Use Case	How
-High Pod Restart	PrometheusRule + Alertmanager
-Pod Crash or OOMKilled	kube_pod_container_status_last_terminated_reason
-Log Pattern "ERROR" in Pod	Loki + Alert in Grafana Explore
-CPU/Memory Threshold	Pod-level PromQL + Alert Rule
-Email/Slack Alerts	Configured in Alertmanager
-
-✅ Testing
-Deploy a test app:
-
-bash
-Copy
-Edit
-kubectl run nginx --image=nginx
-Delete the pod multiple times to simulate crash:
-
-bash
-Copy
-Edit
-kubectl delete pod -l run=nginx
-Check:
-
-Logs in Grafana > Explore
-
-Alerts in Alertmanager
-
-Email/slack notification (if configured)
+3. Login with the password from step 1 and the username: admin
+#################################################################################
+######   WARNING: Persistence is disabled!!! You will lose your data when   #####
+######            the Grafana pod is terminated.                            #####
+#################################################################################

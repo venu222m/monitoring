@@ -138,6 +138,19 @@ Next Steps After Grafana Setup
 Learn PromQL (Prometheus Query Language):
 
 CPU, memory, disk, pod restarts, network.
+Top 5 pods by CPU usage:
+
+topk(5, sum(rate(container_cpu_usage_seconds_total{container!="",pod!=""}[5m])) by (namespace, pod))
+
+
+Show Memory usage % per node:
+
+(sum(node_memory_MemTotal_bytes) - sum(node_memory_MemAvailable_bytes)) / sum(node_memory_MemTotal_bytes) * 100
+
+
+Alert on Pod restarts > 3 in 10m:
+
+increase(kube_pod_container_status_restarts_total[10m]) > 3
 
 Practice writing queries in Prometheus UI, then build Grafana panels.
 
